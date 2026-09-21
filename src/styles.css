@@ -1,8 +1,71 @@
+/* ============ 主题变量：默认浅色，[data-theme="dark"] 为深色 ============ */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  background: #f3f6f4;
+  color: #16241d;
+
+  --bg: #f3f6f4;
+  --panel: #ffffff;
+  --panel-2: #e9f1ec;
+  --line: #cdd9d3;
+  --line-bright: #0e9d5f;
+  --cyan: #0779a8;
+  --text: #16241d;
+  --muted: #5c7368;
+  --danger: #d21f44;
+  --warning: #a87a08;
+  --ok: #0c8a4e;
+  --shadow: rgba(12, 138, 78, 0.16);
+
+  /* 背景：网格线 + 光晕 */
+  --bg-grid-a: rgba(12, 60, 35, 0.055);
+  --bg-grid-b: rgba(7, 90, 120, 0.045);
+  --bg-glow: rgba(2, 132, 168, 0.07);
+
+  /* 登录页扫描线 */
+  --scanline: rgba(0, 0, 0, 0.035);
+  --scanline-blend: multiply;
+
+  /* 面板 / 卡片 */
+  --login-panel-bg: rgba(255, 255, 255, 0.96);
+  --ring-color: #f3f6f4;
+  --sidebar-bg: rgba(248, 251, 249, 0.94);
+  --topbar-bg: rgba(248, 251, 249, 0.88);
+  --pill-bg: rgba(255, 255, 255, 0.9);
+  --panel-g1: rgba(255, 255, 255, 0.98);
+  --panel-g2: rgba(243, 248, 245, 0.98);
+  --panel-inset: rgba(20, 35, 29, 0.03);
+  --panel-hover-border: rgba(12, 138, 78, 0.45);
+  --hero-overlay: linear-gradient(135deg, rgba(12, 138, 78, 0.1), transparent 42%);
+  --card-bg: rgba(12, 60, 35, 0.045);
+  --accent-soft: rgba(12, 138, 78, 0.08);
+  --service-border: rgba(120, 145, 135, 0.4);
+  --stack-bg: rgba(7, 121, 168, 0.07);
+  --dropzone-bg: rgba(12, 138, 78, 0.05);
+
+  /* 表单 / 按钮 */
+  --field-bg: #ffffff;
+  --button-bg: #f1f8f3;
+  --button-inset: rgba(12, 138, 78, 0.1);
+  --on-accent: #ffffff;
+  --focus-ring: rgba(7, 121, 168, 0.18);
+  --error-bg: rgba(210, 31, 68, 0.07);
+  --login-foot: rgba(138, 102, 10, 0.95);
+
+  /* 终端面板：两种主题下都保持深色（终端质感） */
+  --terminal-bg: #071310;
+  --terminal-text: #39ff88;
+
+  /* 标题投影 */
+  --h1-shadow: rgba(12, 138, 78, 0.12);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
   background: #050807;
   color: #d7ffe8;
+
   --bg: #050807;
   --panel: #0b1110;
   --panel-2: #0f1816;
@@ -15,6 +78,42 @@
   --warning: #ffd166;
   --ok: #39ff88;
   --shadow: rgba(57, 255, 136, 0.16);
+
+  --bg-grid-a: rgba(57, 255, 136, 0.03);
+  --bg-grid-b: rgba(0, 217, 255, 0.025);
+  --bg-glow: rgba(0, 217, 255, 0.11);
+
+  --scanline: rgba(255, 255, 255, 0.025);
+  --scanline-blend: screen;
+
+  --login-panel-bg: rgba(7, 14, 12, 0.94);
+  --ring-color: #050807;
+  --sidebar-bg: rgba(5, 8, 7, 0.94);
+  --topbar-bg: rgba(5, 8, 7, 0.88);
+  --pill-bg: rgba(11, 17, 16, 0.86);
+  --panel-g1: rgba(15, 24, 22, 0.96);
+  --panel-g2: rgba(8, 14, 13, 0.96);
+  --panel-inset: rgba(215, 255, 232, 0.02);
+  --panel-hover-border: rgba(57, 255, 136, 0.45);
+  --hero-overlay: linear-gradient(135deg, rgba(57, 255, 136, 0.13), transparent 42%);
+  --card-bg: rgba(5, 8, 7, 0.46);
+  --accent-soft: rgba(57, 255, 136, 0.08);
+  --service-border: rgba(28, 58, 52, 0.75);
+  --stack-bg: rgba(0, 217, 255, 0.06);
+  --dropzone-bg: rgba(57, 255, 136, 0.055);
+
+  --field-bg: #07100e;
+  --button-bg: #08100e;
+  --button-inset: rgba(57, 255, 136, 0.08);
+  --on-accent: #04100a;
+  --focus-ring: rgba(0, 217, 255, 0.12);
+  --error-bg: rgba(255, 59, 92, 0.08);
+  --login-foot: rgba(255, 209, 102, 0.9);
+
+  --terminal-bg: #030605;
+  --terminal-text: #39ff88;
+
+  --h1-shadow: rgba(57, 255, 136, 0.13);
 }
 
 * {
@@ -26,10 +125,10 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    linear-gradient(rgba(57, 255, 136, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 217, 255, 0.025) 1px, transparent 1px),
-    radial-gradient(circle at 72% 14%, rgba(0, 217, 255, 0.11), transparent 28rem),
-    #050807;
+    linear-gradient(var(--bg-grid-a) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid-b) 1px, transparent 1px),
+    radial-gradient(circle at 72% 14%, var(--bg-glow), transparent 28rem),
+    var(--bg);
   background-size: 18px 18px, 18px 18px, auto, auto;
 }
 
@@ -63,20 +162,20 @@ button:disabled {
   pointer-events: none;
   background: repeating-linear-gradient(
     0deg,
-    rgba(255, 255, 255, 0.025),
-    rgba(255, 255, 255, 0.025) 1px,
+    var(--scanline),
+    var(--scanline) 1px,
     transparent 1px,
     transparent 4px
   );
-  mix-blend-mode: screen;
+  mix-blend-mode: var(--scanline-blend);
 }
 
 .login-panel {
   position: relative;
   width: min(520px, 100%);
   border: 2px solid var(--line-bright);
-  background: rgba(7, 14, 12, 0.94);
-  box-shadow: 0 0 0 4px #050807, 0 0 42px var(--shadow);
+  background: var(--login-panel-bg);
+  box-shadow: 0 0 0 4px var(--ring-color), 0 0 42px var(--shadow);
   padding: 34px;
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
 }
@@ -112,7 +211,7 @@ button:disabled {
   color: var(--text);
   font-size: clamp(2rem, 7vw, 4.5rem);
   line-height: 1;
-  text-shadow: 4px 4px 0 rgba(57, 255, 136, 0.13);
+  text-shadow: 4px 4px 0 var(--h1-shadow);
 }
 
 .login-panel p,
@@ -140,7 +239,7 @@ button:disabled {
   grid-template-columns: 38px 1fr;
   align-items: center;
   border: 1px solid var(--line);
-  background: #07100e;
+  background: var(--field-bg);
 }
 
 .input-with-icon svg {
@@ -154,7 +253,7 @@ select {
   border: 1px solid var(--line);
   border-radius: 0;
   outline: none;
-  background: #07100e;
+  background: var(--field-bg);
   color: var(--text);
   padding: 13px 14px;
   caret-color: var(--ok);
@@ -167,13 +266,13 @@ select {
 input:focus,
 select:focus {
   border-color: var(--cyan);
-  box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.12);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .pixel-error {
   border-left: 4px solid var(--danger);
   color: var(--danger);
-  background: rgba(255, 59, 92, 0.08);
+  background: var(--error-bg);
   padding: 10px 12px;
 }
 
@@ -184,21 +283,21 @@ select:focus {
   justify-content: center;
   gap: 9px;
   border: 1px solid var(--line-bright);
-  background: #08100e;
+  background: var(--button-bg);
   color: var(--ok);
   padding: 10px 14px;
   text-transform: uppercase;
-  box-shadow: inset -3px -3px 0 rgba(57, 255, 136, 0.08);
+  box-shadow: inset -3px -3px 0 var(--button-inset);
 }
 
 .pixel-button:hover {
   background: var(--ok);
-  color: #04100a;
+  color: var(--on-accent);
 }
 
 .pixel-button.primary {
   background: var(--ok);
-  color: #04100a;
+  color: var(--on-accent);
   font-weight: 800;
 }
 
@@ -207,9 +306,39 @@ select:focus {
   border-color: var(--cyan);
 }
 
+/* 主题切换按钮 */
+.theme-toggle {
+  display: inline-flex;
+  min-height: 38px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line-bright);
+  background: var(--button-bg);
+  color: var(--ok);
+  padding: 8px 12px;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  box-shadow: inset -3px -3px 0 var(--button-inset);
+}
+
+.theme-toggle:hover {
+  background: var(--ok);
+  color: var(--on-accent);
+}
+
+.login-theme-toggle {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 2;
+}
+
 .login-foot {
   margin-top: 24px;
-  color: rgba(255, 209, 102, 0.9);
+  color: var(--login-foot);
   font-size: 0.78rem;
 }
 
@@ -226,7 +355,7 @@ select:focus {
   height: 100vh;
   flex-direction: column;
   border-right: 1px solid var(--line);
-  background: rgba(5, 8, 7, 0.94);
+  background: var(--sidebar-bg);
   padding: 18px;
 }
 
@@ -266,7 +395,7 @@ select:focus {
 .nav-item:hover,
 .nav-item.active {
   border-color: var(--line-bright);
-  background: rgba(57, 255, 136, 0.08);
+  background: var(--accent-soft);
   color: var(--text);
 }
 
@@ -294,7 +423,7 @@ select:focus {
   justify-content: space-between;
   gap: 20px;
   border-bottom: 1px solid var(--line);
-  background: rgba(5, 8, 7, 0.88);
+  background: var(--topbar-bg);
   backdrop-filter: blur(12px);
   padding: 18px 24px;
 }
@@ -313,7 +442,7 @@ select:focus {
 .status-pill {
   gap: 8px;
   border: 1px solid var(--line);
-  background: rgba(11, 17, 16, 0.86);
+  background: var(--pill-bg);
   padding: 8px 10px;
   font-size: 0.8rem;
 }
@@ -361,13 +490,13 @@ select:focus {
 
 .panel {
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(15, 24, 22, 0.96), rgba(8, 14, 13, 0.96));
-  box-shadow: inset 0 0 0 1px rgba(215, 255, 232, 0.02);
+  background: linear-gradient(180deg, var(--panel-g1), var(--panel-g2));
+  box-shadow: inset 0 0 0 1px var(--panel-inset);
   padding: 18px;
 }
 
 .panel:hover {
-  border-color: rgba(57, 255, 136, 0.45);
+  border-color: var(--panel-hover-border);
 }
 
 .hero-console {
@@ -375,10 +504,10 @@ select:focus {
   min-height: 280px;
   flex-direction: column;
   justify-content: space-between;
-  border-color: rgba(57, 255, 136, 0.55);
+  border-color: var(--panel-hover-border);
   background:
-    linear-gradient(135deg, rgba(57, 255, 136, 0.13), transparent 42%),
-    linear-gradient(180deg, rgba(15, 24, 22, 0.96), rgba(8, 14, 13, 0.96));
+    var(--hero-overlay),
+    linear-gradient(180deg, var(--panel-g1), var(--panel-g2));
 }
 
 .hero-console h1 {
@@ -431,7 +560,7 @@ select:focus {
   align-items: center;
   gap: 10px;
   border: 1px solid var(--line);
-  background: rgba(5, 8, 7, 0.48);
+  background: var(--card-bg);
   padding: 12px;
 }
 
@@ -458,7 +587,7 @@ select:focus {
   display: grid;
   grid-template-columns: 26px 1fr 10px auto;
   gap: 10px;
-  border-bottom: 1px solid rgba(28, 58, 52, 0.75);
+  border-bottom: 1px solid var(--service-border);
   padding: 9px 0;
 }
 
@@ -473,12 +602,12 @@ select:focus {
 
 .terminal-lines {
   border: 1px solid var(--line);
-  background: #030605;
+  background: var(--terminal-bg);
   padding: 14px;
 }
 
 .terminal-lines code {
-  color: var(--ok);
+  color: var(--terminal-text);
   white-space: normal;
 }
 
@@ -496,7 +625,7 @@ select:focus {
 .segmented {
   display: flex;
   border: 1px solid var(--line);
-  background: #07100e;
+  background: var(--field-bg);
 }
 
 .segmented.wrap {
@@ -519,7 +648,7 @@ select:focus {
 
 .segmented button.active {
   background: var(--ok);
-  color: #04100a;
+  color: var(--on-accent);
 }
 
 .checkbox-grid,
@@ -544,7 +673,7 @@ select:focus {
 .module-tile,
 .tool-tile {
   border: 1px solid var(--line);
-  background: rgba(5, 8, 7, 0.45);
+  background: var(--card-bg);
 }
 
 .check-row,
@@ -569,7 +698,7 @@ select:focus {
   gap: 10px;
   min-height: 190px;
   border: 2px dashed var(--line-bright);
-  background: rgba(57, 255, 136, 0.055);
+  background: var(--dropzone-bg);
   color: var(--text);
   text-align: center;
 }
@@ -591,7 +720,7 @@ select:focus {
 .detail-block,
 .metric {
   border: 1px solid var(--line);
-  background: rgba(5, 8, 7, 0.46);
+  background: var(--card-bg);
   padding: 13px;
 }
 
@@ -604,14 +733,14 @@ select:focus {
 
 .success-banner {
   gap: 9px;
-  border-color: rgba(57, 255, 136, 0.54);
+  border-color: var(--panel-hover-border);
   color: var(--ok);
 }
 
 .stack-item {
   gap: 10px;
   border-left: 3px solid var(--cyan);
-  background: rgba(0, 217, 255, 0.06);
+  background: var(--stack-bg);
   padding: 12px;
 }
 
@@ -658,7 +787,7 @@ select:focus {
   gap: 8px;
   width: 100%;
   border: 1px solid var(--line);
-  background: rgba(5, 8, 7, 0.45);
+  background: var(--card-bg);
   color: var(--text);
   padding: 13px;
   text-align: left;
@@ -667,7 +796,7 @@ select:focus {
 .finding-card:hover,
 .finding-card.active {
   border-color: var(--line-bright);
-  background: rgba(57, 255, 136, 0.08);
+  background: var(--accent-soft);
 }
 
 .finding-card span,

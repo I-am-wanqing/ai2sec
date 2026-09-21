@@ -1,6 +1,6 @@
 # AI2Sec Ops Console Linux 部署文档
 
-本文档用于部署当前前端原型。它是纯前端静态应用，生产环境推荐使用 Docker + Nginx；如需接入真实后端，只需要把 API 网关反向代理补到 Nginx 或负载均衡层。
+本文档用于部署 AI2Sec 安全 MVP。它包含 React 前端、FastAPI 后端、SQLite 存储、LangGraph 编排入口、Jinja2 报告渲染和受控 Sandbox 工具门面。
 
 ## 1. 服务器要求
 
@@ -16,18 +16,26 @@
 
 - Node.js 22 LTS
 - npm 10+
+- Python 3.10+，推荐 Python 3.12
 - Docker 24+
 - Nginx 1.24+，如果不使用 Docker 部署
 
 ## 2. 前端运行参数
 
-当前版本的邀请码在前端 mock：
+默认开发邀请码：
 
 ```text
 demo-invite-code
 ```
 
-生产环境不要继续使用前端硬编码邀请码。建议后端提供：
+生产环境请通过环境变量覆盖：
+
+```bash
+export AI2SEC_INVITE_CODE='change-me'
+export AI2SEC_DATABASE_URL='sqlite:////opt/ai2sec/backend/data/ai2sec.db'
+```
+
+后端认证接口：
 
 ```http
 POST /api/auth/invite
@@ -50,24 +58,55 @@ Content-Type: application/json
 
 正式上线时建议使用 `httpOnly`、`Secure`、`SameSite=Strict` Cookie 保存会话。
 
-## 3. 普通 Linux 静态部署
+## 3. 普通 Linux 部署
 
 安装 Node.js：
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs nginx
+sudo apt-get install -y nodejs nginx python3-venv python3-pip
 ```
 
-拉取代码后构建：
+拉取代码后安装依赖：
+
+注：npm config set registry https://registry.npmmirror.com
 
 ```bash
 cd /opt/ai2sec
 npm ci
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r backend/requirements.txt
 npm run build
 ```
 
-复制静态文件：
+创建后端 systemd 服务：
+
+```ini
+[Unit]
+Description=AI2Sec Backend
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/ai2sec
+Environment=AI2SEC_INVITE_CODE=change-me
+Environment=AI2SEC_DATABASE_URL=sqlite:////opt/ai2sec/backend/data/ai2sec.db
+ExecStart=/opt/ai2sec/.venv/bin/uvicorn ai2sec_backend.main:app --app-dir backend --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+保存为 `/etc/systemd/system/ai2sec-backend.service` 后启动：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now ai2sec-backend
+```
+
+复制前端静态文件：
 
 ```bash
 sudo mkdir -p /var/www/ai2sec
@@ -113,15 +152,52 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## 4. Docker 部署
+## 4. Docker Compose 部署
 
-构建镜像：
+推荐使用仓库内 `docker-compose.yml` 同时启动前后端：
+
+```bash
+docker compose up --build -d
+```
+
+访问：
+
+```text
+http://服务器IP:8080
+```
+
+后端健康检查：
+
+```bash
+curl http://127.0.0.1:8000/api/health
+```
+
+## 5. 单独 Docker 部署
+
+构建前端镜像：
 
 ```bash
 docker build -t ai2sec-ops-console:0.1.0 .
 ```
 
-启动容器：
+构建后端镜像：
+
+```bash
+docker build -f backend/Dockerfile -t ai2sec-backend:0.1.0 .
+```
+
+启动后端容器：
+
+```bash
+docker run -d \
+  --name ai2sec-backend \
+  --restart unless-stopped \
+  -e AI2SEC_INVITE_CODE=change-me \
+  -p 8000:8000 \
+  ai2sec-backend:0.1.0
+```
+
+启动前端容器：
 
 ```bash
 docker run -d \
@@ -131,26 +207,7 @@ docker run -d \
   ai2sec-ops-console:0.1.0
 ```
 
-访问：
-
-```text
-http://服务器IP:8080
-```
-
-更新版本：
-
-```bash
-docker build -t ai2sec-ops-console:0.1.1 .
-docker stop ai2sec-ops-console
-docker rm ai2sec-ops-console
-docker run -d \
-  --name ai2sec-ops-console \
-  --restart unless-stopped \
-  -p 8080:80 \
-  ai2sec-ops-console:0.1.1
-```
-
-## 5. HTTPS 配置
+## 6. HTTPS 配置
 
 使用 Certbot：
 
@@ -165,7 +222,7 @@ sudo certbot --nginx -d ai2sec.example.com
 sudo systemctl status certbot.timer
 ```
 
-## 6. 推荐后端 API 对接点
+## 7. 后端 API
 
 黑盒任务：
 
@@ -227,18 +284,19 @@ GET /api/reports/{reportId}
 ```http
 GET /api/reports/{reportId}/export.pdf
 GET /api/reports/{reportId}/export.json
+GET /api/reports/{reportId}/export.md
 ```
 
-## 7. 安全建议
+## 8. 安全建议
 
-- 邀请码只能在后端校验，前端只负责提交。
+- 邀请码在后端校验，前端只负责提交。
 - 白盒压缩包必须在后端做文件类型、大小、解压路径和压缩炸弹防护。
 - 黑盒目标必须做授权声明和 scope 限制。
-- Docker Sandbox 不应与前端容器共用权限、网络或文件系统。
+- Docker Sandbox 当前为安全 MVP 门面，仅允许白名单命令；真实扫描工具接入前应单独隔离权限、网络和文件系统。
 - 报告证据目录应不可变存储，避免后续覆盖验证材料。
 - API 需要审计日志，至少记录用户、目标、时间、任务配置和导出行为。
 
-## 8. 运维检查
+## 9. 运维检查
 
 检查容器：
 

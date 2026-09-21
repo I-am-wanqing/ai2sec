@@ -1,0 +1,24 @@
+# {{ report.title }}
+
+Target: `{{ report.target }}`
+
+Risk score: **{{ report.riskScore }}**
+
+{{ report.summary }}
+
+## Findings
+
+{% for finding in report.findings %}
+### [{{ finding.severity | upper }}] {{ finding.title }}
+
+- Component: `{{ finding.component }}`
+- Source: {{ finding.source }}
+- Verified: {{ finding.verified }}
+
+{{ finding.description }}
+
+Recommendation: {{ finding.recommendation }}
+
+{% else %}
+No findings were produced by the safe MVP pipeline.
+{% endfor %}

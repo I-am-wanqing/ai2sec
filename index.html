@@ -8,6 +8,18 @@
       content="AI2Sec Ops Console multi-agent penetration testing frontend prototype."
     />
     <title>AI2Sec Ops Console</title>
+    <script>
+      // 防闪烁：在渲染前恢复用户上次选择的主题（默认浅色）
+      (function () {
+        try {
+          if (localStorage.getItem("ai2sec.theme") === "dark") {
+            document.documentElement.dataset.theme = "dark";
+          }
+        } catch (error) {
+          /* localStorage 不可用时保持默认浅色 */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

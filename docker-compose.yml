@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      AI2SEC_DATABASE_URL: sqlite:////app/backend/data/ai2sec.db
+      AI2SEC_INVITE_CODE: demo-invite-code
+    volumes:
+      - ai2sec-backend-data:/app/backend/data
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  ai2sec-backend-data:

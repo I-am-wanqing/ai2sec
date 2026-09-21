@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "backend": ".venv/bin/python -m uvicorn ai2sec_backend.main:app --app-dir backend --host 127.0.0.1 --port 8000",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0"
   },

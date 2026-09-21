@@ -29,13 +29,15 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  Sun,
+  Moon,
   Terminal,
   UploadCloud,
   Workflow,
   Zap,
   type LucideIcon
 } from "lucide-react";
-import { ChangeEvent, DragEvent, FormEvent, ReactNode, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
 type View = "dashboard" | "blackbox" | "whitebox" | "reports" | "sandbox" | "settings";
 type ScanProfile = "quick" | "standard" | "deep";
@@ -49,9 +51,58 @@ type Finding = {
   verified: boolean;
   component: string;
   description: string;
+  recommendation?: string;
+  evidence?: Record<string, unknown>;
+};
+type ReportSummary = {
+  id: string;
+  scanId: string;
+  title: string;
+  riskScore: number;
+  summary: string;
+  createdAt: string;
+};
+type ReportDetail = ReportSummary & {
+  findings: Finding[];
 };
 
 const inviteCode = "demo-invite-code";
+const tokenKey = "ai2sec.token";
+const themeKey = "ai2sec.theme";
+
+type Theme = "light" | "dark";
+
+function useTheme() {
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem(themeKey) === "dark" ? "dark" : "light")
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(themeKey, theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }
+
+  return { theme, toggleTheme };
+}
+
+function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className="theme-toggle"
+      onClick={onToggle}
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+      {theme === "dark" ? "LIGHT" : "DARK"}
+    </button>
+  );
+}
 
 const agents = [
   { name: "Root Agent", status: "planning", icon: Workflow },
@@ -108,21 +159,37 @@ const terminalLines = [
 ];
 
 function App() {
-  const [authed, setAuthed] = useState(() => localStorage.getItem("ai2sec.invite") === inviteCode);
+  const [authed, setAuthed] = useState(() => Boolean(localStorage.getItem(tokenKey)));
   const [code, setCode] = useState("");
   const [loginError, setLoginError] = useState("");
   const [view, setView] = useState<View>("dashboard");
   const [selectedFinding, setSelectedFinding] = useState(findings[0]);
+  const { theme, toggleTheme } = useTheme();
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (code.trim() === inviteCode) {
-      localStorage.setItem("ai2sec.invite", inviteCode);
+    setLoginError("");
+    try {
+      const response = await fetch("/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteCode: code.trim() })
+      });
+      if (!response.ok) {
+        throw new Error("ACCESS DENIED: invalid invite code");
+      }
+      const payload = (await response.json()) as { token: string };
+      localStorage.setItem(tokenKey, payload.token);
+      localStorage.setItem("ai2sec.invite", code.trim());
       setAuthed(true);
-      setLoginError("");
       return;
+    } catch (error) {
+      if (code.trim() === inviteCode) {
+        setLoginError("Backend unavailable. Start backend on :8000 to verify invite.");
+      } else {
+        setLoginError(error instanceof Error ? error.message : "ACCESS DENIED");
+      }
     }
-    setLoginError("ACCESS DENIED: invalid invite code");
   }
 
   if (!authed) {
@@ -132,6 +199,8 @@ function App() {
         error={loginError}
         onCode={setCode}
         onLogin={handleLogin}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
     );
   }
@@ -140,7 +209,7 @@ function App() {
     <div className="shell">
       <Sidebar view={view} onView={setView} />
       <main className="workspace">
-        <TopBar />
+        <TopBar theme={theme} onToggleTheme={toggleTheme} />
         {view === "dashboard" && <Dashboard onView={setView} onFinding={setSelectedFinding} />}
         {view === "blackbox" && <BlackboxPage />}
         {view === "whitebox" && <WhiteboxPage />}
@@ -158,16 +227,23 @@ function LoginScreen({
   code,
   error,
   onCode,
-  onLogin
+  onLogin,
+  theme,
+  onToggleTheme
 }: {
   code: string;
   error: string;
   onCode: (value: string) => void;
-  onLogin: (event: FormEvent<HTMLFormElement>) => void;
+  onLogin: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  theme: Theme;
+  onToggleTheme: () => void;
 }) {
   return (
     <main className="login-screen">
       <div className="scanline" />
+      <div className="login-theme-toggle">
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+      </div>
       <section className="login-panel">
         <div className="brand-mark">
           <ShieldAlert size={42} />
@@ -239,7 +315,7 @@ function Sidebar({ view, onView }: { view: View; onView: (view: View) => void })
   );
 }
 
-function TopBar() {
+function TopBar({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
   return (
     <header className="topbar">
       <div>
@@ -250,6 +326,7 @@ function TopBar() {
         <StatusPill label="Invite" value="Verified" tone="good" />
         <StatusPill label="Sandbox" value="Online" tone="good" />
         <StatusPill label="MCP" value="Connected" tone="good" />
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
       </div>
     </header>
   );
@@ -331,7 +408,9 @@ function Dashboard({
 function BlackboxPage() {
   const [target, setTarget] = useState("https://example.com");
   const [profile, setProfile] = useState<ScanProfile>("standard");
-  const [submitted, setSubmitted] = useState(false);
+  const [submission, setSubmission] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const modules = [
     "Asset Discovery",
     "Port Scan",
@@ -349,9 +428,38 @@ function BlackboxPage() {
         <SectionTitle icon={<Globe2 size={18} />} title="Blackbox Target" />
         <form
           className="config-form"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            setSubmitted(true);
+            setLoading(true);
+            setError("");
+            setSubmission("");
+            try {
+              const response = await fetch("/api/scans/blackbox", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                  targetUrl: target,
+                  profile,
+                  scope: {
+                    includeSubdomains: true,
+                    respectRobots: true,
+                    rateLimit: true,
+                    authenticatedScan: false
+                  },
+                  modules
+                })
+              });
+              if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.detail || "Failed to create blackbox scan");
+              }
+              const payload = (await response.json()) as { scanId: string; status: string };
+              setSubmission(`Scan ${payload.scanId} queued with status ${payload.status}`);
+            } catch (submitError) {
+              setError(submitError instanceof Error ? submitError.message : "Failed to create scan");
+            } finally {
+              setLoading(false);
+            }
           }}
         >
           <PixelField label="TARGET URL">
@@ -390,9 +498,9 @@ function BlackboxPage() {
             ))}
           </div>
           <div className="action-row">
-            <button className="pixel-button primary" type="submit">
+            <button className="pixel-button primary" type="submit" disabled={loading}>
               <Play size={16} />
-              START BLACKBOX SCAN
+              {loading ? "CREATING..." : "START BLACKBOX SCAN"}
             </button>
             <button className="pixel-button" type="button">
               <Archive size={16} />
@@ -413,12 +521,13 @@ function BlackboxPage() {
           <span>Profile</span>
           <strong>{profile.toUpperCase()}</strong>
         </div>
-        {submitted && (
+        {submission && (
           <div className="success-banner">
             <Check size={17} />
-            Mock task queued. API hook: POST /api/scans/blackbox
+            {submission}
           </div>
         )}
+        {error && <div className="pixel-error">{error}</div>}
       </aside>
     </div>
   );
@@ -426,7 +535,12 @@ function BlackboxPage() {
 
 function WhiteboxPage() {
   const [fileName, setFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [projectName, setProjectName] = useState("demo-service");
   const [auditProfile, setAuditProfile] = useState<AuditProfile>("full");
+  const [submission, setSubmission] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const vulnClasses = [
     "SQL Injection",
     "XSS",
@@ -440,6 +554,7 @@ function WhiteboxPage() {
 
   function applyFile(file?: File) {
     if (!file) return;
+    setFile(file);
     setFileName(`${file.name} / ${(file.size / 1024 / 1024).toFixed(2)} MB`);
   }
 
@@ -452,9 +567,44 @@ function WhiteboxPage() {
     <div className="page form-grid">
       <section className="panel">
         <SectionTitle icon={<Code2 size={18} />} title="Whitebox Source Audit" />
-        <div className="config-form">
+        <form
+          className="config-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setSubmission("");
+            setError("");
+            if (!file) {
+              setError("Please select a source archive first.");
+              return;
+            }
+            setLoading(true);
+            try {
+              const data = new FormData();
+              data.append("projectName", projectName);
+              data.append("language", "auto");
+              data.append("auditProfile", auditProfile);
+              vulnClasses.forEach((item) => data.append("vulnerabilityClasses", item));
+              data.append("archive", file);
+              const response = await fetch("/api/scans/whitebox", {
+                method: "POST",
+                headers: authHeaders(false),
+                body: data
+              });
+              if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.detail || "Failed to create whitebox audit");
+              }
+              const payload = (await response.json()) as { scanId: string; status: string };
+              setSubmission(`Audit ${payload.scanId} queued with status ${payload.status}`);
+            } catch (submitError) {
+              setError(submitError instanceof Error ? submitError.message : "Failed to upload archive");
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >
           <PixelField label="PROJECT NAME">
-            <input placeholder="payment-service" />
+            <input value={projectName} onChange={(event) => setProjectName(event.target.value)} />
           </PixelField>
           <label
             className="dropzone"
@@ -504,11 +654,18 @@ function WhiteboxPage() {
               </label>
             ))}
           </div>
-          <button className="pixel-button primary" type="button">
+          <button className="pixel-button primary" type="submit" disabled={loading}>
             <HardDriveUpload size={16} />
-            START WHITEBOX AUDIT
+            {loading ? "UPLOADING..." : "START WHITEBOX AUDIT"}
           </button>
-        </div>
+          {submission && (
+            <div className="success-banner">
+              <Check size={17} />
+              {submission}
+            </div>
+          )}
+          {error && <div className="pixel-error">{error}</div>}
+        </form>
       </section>
 
       <aside className="panel">
@@ -539,55 +696,111 @@ function ReportsPage({
   selected: Finding;
   onSelect: (finding: Finding) => void;
 }) {
+  const [reports, setReports] = useState<ReportSummary[]>([]);
+  const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/reports", { headers: authHeaders(false) })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Failed to load backend reports");
+        return (await response.json()) as ReportSummary[];
+      })
+      .then((items) => {
+        setReports(items);
+        if (items[0]) setSelectedReportId(items[0].id);
+      })
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Failed to load reports"));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedReportId) return;
+    fetch(`/api/reports/${selectedReportId}`, { headers: authHeaders(false) })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Failed to load report detail");
+        return (await response.json()) as ReportDetail;
+      })
+      .then((detail) => {
+        setReportDetail(detail);
+        if (detail.findings[0]) onSelect(detail.findings[0]);
+      })
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Failed to load report"));
+  }, [selectedReportId, onSelect]);
+
+  const visibleFindings = reportDetail?.findings.length ? reportDetail.findings : findings;
+  const visibleSelected =
+    visibleFindings.find((finding) => finding.id === selected.id) || visibleFindings[0] || selected;
   const counts = useMemo(
     () => ({
-      critical: findings.filter((item) => item.severity === "critical").length,
-      high: findings.filter((item) => item.severity === "high").length,
-      medium: findings.filter((item) => item.severity === "medium").length,
-      low: findings.filter((item) => item.severity === "low").length
+      critical: visibleFindings.filter((item) => item.severity === "critical").length,
+      high: visibleFindings.filter((item) => item.severity === "high").length,
+      medium: visibleFindings.filter((item) => item.severity === "medium").length,
+      low: visibleFindings.filter((item) => item.severity === "low").length
     }),
-    []
+    [visibleFindings]
   );
 
   return (
     <div className="page report-layout">
       <section className="panel report-summary">
         <SectionTitle icon={<ShieldAlert size={18} />} title="Report Summary" />
+        {error && <div className="pixel-error">{error}</div>}
+        {reports.length > 0 && (
+          <PixelField label="REPORT">
+            <select value={selectedReportId} onChange={(event) => setSelectedReportId(event.target.value)}>
+              {reports.map((report) => (
+                <option key={report.id} value={report.id}>
+                  {report.title} / {report.id}
+                </option>
+              ))}
+            </select>
+          </PixelField>
+        )}
         <div className="metric-grid">
-          <Metric label="Risk Score" value="8.2" tone="bad" />
-          <Metric label="Findings" value={String(findings.length)} tone="good" />
+          <Metric label="Risk Score" value={String(reportDetail?.riskScore ?? 8.2)} tone="bad" />
+          <Metric label="Findings" value={String(visibleFindings.length)} tone="good" />
           <Metric label="Critical" value={String(counts.critical)} tone="bad" />
           <Metric label="High" value={String(counts.high)} tone="warn" />
         </div>
       </section>
       <section className="panel finding-column">
         <SectionTitle icon={<Bug size={18} />} title="Findings" />
-        <FindingList findings={findings} selectedId={selected.id} onSelect={onSelect} />
+        <FindingList findings={visibleFindings} selectedId={visibleSelected.id} onSelect={onSelect} />
       </section>
       <section className="panel finding-detail">
         <div className="detail-head">
-          <RiskBadge severity={selected.severity} />
-          <h3>{selected.title}</h3>
-          <span>{selected.id}</span>
+          <RiskBadge severity={visibleSelected.severity} />
+          <h3>{visibleSelected.title}</h3>
+          <span>{visibleSelected.id}</span>
         </div>
         <div className="detail-grid">
-          <DetailBlock label="Component" value={selected.component} />
-          <DetailBlock label="Source Agent" value={selected.source} />
-          <DetailBlock label="Verification" value={selected.verified ? "Verified" : "Pending"} />
+          <DetailBlock label="Component" value={visibleSelected.component} />
+          <DetailBlock label="Source Agent" value={visibleSelected.source} />
+          <DetailBlock label="Verification" value={visibleSelected.verified ? "Verified" : "Pending"} />
         </div>
-        <DetailSection title="Description">{selected.description}</DetailSection>
+        <DetailSection title="Description">{visibleSelected.description}</DetailSection>
         <DetailSection title="Evidence">
-          Mock evidence packet contains request, response diff, timing sample, sandbox transcript and validation notes.
+          {JSON.stringify(visibleSelected.evidence || { note: "No backend evidence loaded yet." })}
         </DetailSection>
         <DetailSection title="Recommendation">
-          使用参数化查询、上下文输出编码、严格 scope 控制，并将验证结果写入不可变报告证据目录。
+          {visibleSelected.recommendation ||
+            "使用参数化查询、上下文输出编码、严格 scope 控制，并将验证结果写入不可变报告证据目录。"}
         </DetailSection>
         <div className="action-row">
-          <button className="pixel-button">
+          <button
+            className="pixel-button"
+            disabled={!reportDetail}
+            onClick={() => reportDetail && downloadReport(reportDetail.id, "md")}
+          >
             <Download size={16} />
-            EXPORT PDF
+            EXPORT MD
           </button>
-          <button className="pixel-button">
+          <button
+            className="pixel-button"
+            disabled={!reportDetail}
+            onClick={() => reportDetail && downloadReport(reportDetail.id, "json")}
+          >
             <FileJson size={16} />
             EXPORT JSON
           </button>
@@ -748,6 +961,29 @@ function DetailSection({ title, children }: { title: string; children: ReactNode
       <p>{children}</p>
     </section>
   );
+}
+
+function authHeaders(json = true): HeadersInit {
+  const token = localStorage.getItem(tokenKey) || "";
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`
+  };
+  if (json) headers["Content-Type"] = "application/json";
+  return headers;
+}
+
+async function downloadReport(reportId: string, format: "json" | "md") {
+  const response = await fetch(`/api/reports/${reportId}/export.${format}`, {
+    headers: authHeaders(false)
+  });
+  if (!response.ok) return;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `ai2sec-report-${reportId}.${format}`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export { App };

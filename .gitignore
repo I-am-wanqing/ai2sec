@@ -3,5 +3,10 @@ dist/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+backend/data/
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
 .DS_Store
 npm-debug.log*

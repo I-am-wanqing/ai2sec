@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4.1-mini"
+    skill_dir: Path = Path("./code-audit-main")
+    llm_audit_enabled: bool = True
+    llm_max_batches: int = 12
+    llm_batch_chars: int = 48_000
+    pentest_dir: Path = Path("./dsh-pentest-skills-main")
+    llm_pentest_enabled: bool = True
+    pentest_max_endpoints: int = 200
 
     model_config = SettingsConfigDict(env_prefix="AI2SEC_", env_file=".env", extra="ignore")
 

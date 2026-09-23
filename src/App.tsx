@@ -41,7 +41,7 @@ import { ChangeEvent, DragEvent, FormEvent, ReactNode, useEffect, useMemo, useSt
 
 type View = "dashboard" | "blackbox" | "whitebox" | "reports" | "sandbox" | "settings";
 type ScanProfile = "quick" | "standard" | "deep";
-type AuditProfile = "deps" | "sast" | "flow" | "full";
+type AuditProfile = "quick" | "standard" | "deep";
 type Severity = "critical" | "high" | "medium" | "low";
 type Finding = {
   id: string;
@@ -412,14 +412,14 @@ function BlackboxPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const modules = [
-    "Asset Discovery",
-    "Port Scan",
-    "Service Fingerprint",
-    "Web Crawl",
-    "API Discovery",
-    "Parameter Discovery",
-    "Vuln Testing",
-    "PoC Validation"
+    "Probe & Tech Stack",
+    "Fingerprint (CN CMS/OA/WAF)",
+    "JSFinder Endpoints",
+    "Secret Scan",
+    "Swagger/OpenAPI",
+    "SSL Analysis",
+    "Security Headers",
+    "Sensitive Paths"
   ];
 
   return (
@@ -465,7 +465,7 @@ function BlackboxPage() {
           <PixelField label="TARGET URL">
             <input value={target} onChange={(event) => setTarget(event.target.value)} />
           </PixelField>
-          <PixelField label="SCAN PROFILE">
+          <PixelField label="SCAN PROFILE (DSH PENTEST SOP)">
             <div className="segmented">
               {(["quick", "standard", "deep"] as ScanProfile[]).map((value) => (
                 <button
@@ -537,7 +537,7 @@ function WhiteboxPage() {
   const [fileName, setFileName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [projectName, setProjectName] = useState("demo-service");
-  const [auditProfile, setAuditProfile] = useState<AuditProfile>("full");
+  const [auditProfile, setAuditProfile] = useState<AuditProfile>("standard");
   const [submission, setSubmission] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -632,9 +632,9 @@ function WhiteboxPage() {
               <option value="php">PHP</option>
             </select>
           </PixelField>
-          <PixelField label="AUDIT PROFILE">
+          <PixelField label="AUDIT MODE (CODE-AUDIT SKILL)">
             <div className="segmented wrap">
-              {(["deps", "sast", "flow", "full"] as AuditProfile[]).map((value) => (
+              {(["quick", "standard", "deep"] as AuditProfile[]).map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -671,18 +671,28 @@ function WhiteboxPage() {
       <aside className="panel">
         <SectionTitle icon={<Layers3 size={18} />} title="Audit Pipeline" />
         <div className="stack-list">
-          {["Archive Intake", "Dependency Scan", "Secret Scan", "SAST Search", "Data Flow Analysis", "Independent Validation", "Report Render"].map(
-            (item) => (
+          {[
+            "Mode Determination [MODE]",
+            "Reconnaissance [RECON]",
+            "Execution Plan [PLAN]",
+            "D1-D10 Dimension Scan",
+            "Coverage Matrix",
+            "Report Gate",
+            "Report Render"
+          ].map((item) => (
               <div className="stack-item" key={item}>
                 <CircleDot size={15} />
                 {item}
               </div>
-            )
-          )}
+            ))}
         </div>
         <div className="summary-box">
-          <span>Selected profile</span>
+          <span>Selected mode</span>
           <strong>{auditProfile.toUpperCase()}</strong>
+        </div>
+        <div className="summary-box">
+          <span>Coverage</span>
+          <strong>{auditProfile === "quick" ? "D1 D7 D10" : "D1 - D10 FULL"}</strong>
         </div>
       </aside>
     </div>

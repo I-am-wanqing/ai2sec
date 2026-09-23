@@ -81,7 +81,7 @@ async def create_whitebox_scan(
     background: BackgroundTasks,
     projectName: str = Form(...),
     language: str = Form("auto"),
-    auditProfile: str = Form("full"),
+    auditProfile: str = Form("standard"),
     vulnerabilityClasses: List[str] = Form(default=[]),
     archive: UploadFile = File(...),
     token: str = Depends(require_token),

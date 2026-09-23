@@ -1,12 +1,13 @@
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
-
 from .config import Settings, get_settings
 from .db import insert_event, insert_finding, set_scan_status
 from .reports import build_report
 from .sandbox import DockerSandbox
-from .scanners import analyze_blackbox, analyze_whitebox
+from .audit import run_whitebox_audit
+from .pentest import run_blackbox_audit
+from .scanners import analyze_blackbox
 
 
 class AgentState(TypedDict, total=False):
@@ -17,8 +18,11 @@ class AgentState(TypedDict, total=False):
     work_dir: str
     config: Dict[str, Any]
     plan: List[str]
+    mode: str
     recon: Dict[str, Any]
     discovery: Dict[str, Any]
+    coverage: Dict[str, Any]
+    gate: Dict[str, Any]
     findings: List[Dict[str, Any]]
     report: Dict[str, Any]
     errors: List[str]
@@ -100,11 +104,53 @@ def recon_agent(state: AgentState) -> AgentState:
 def discovery_agent(state: AgentState) -> AgentState:
     insert_event(state["scan_id"], "Discovery Agent", "Discovery started", "info")
     if state["scan_type"] == "blackbox":
-        result = analyze_blackbox(state["target"], state["config"])
+        # Black-box: run the dsh pentest pipeline (recon engine → LLM SOP →
+        # safe probes → 15-class coverage ledger).
+        scan_id = state["scan_id"]
+
+        def _emit(agent: str, message: str, level: str, data: Any) -> None:
+            insert_event(scan_id, agent, message, level, data)
+
+        result = run_blackbox_audit(state["target"], state["config"], emit=_emit)
+        state["recon"] = {
+            "target": result["recon"]["target"],
+            "page": result["recon"]["page"],
+            "fingerprints": result["recon"]["fingerprints"],
+            "endpointCount": len(result["recon"]["jsfinder"]["endpoints"]),
+            "secretCount": len(result["recon"]["jsfinder"]["secrets"]),
+        }
+        state["discovery"] = {
+            "engine": result["engine"],
+            "depth": result["depth"],
+            "endpoints": result["recon"]["jsfinder"]["endpoints"][:100],
+            "secrets": result["recon"]["jsfinder"]["secrets"][:30],
+            "openapi": result["recon"].get("openapi"),
+        }
+        state["coverage"] = result["coverage"]
+        state["findings"] = result["findings"]
     else:
-        result = analyze_whitebox(Path(state["archive_path"]), Path(state["work_dir"]), state["config"])
-    state["discovery"] = {key: value for key, value in result.items() if key != "findings"}
-    state["findings"] = result["findings"]
+        # White-box: run the code-audit skill pipeline (mode → recon →
+        # D1-D10 dimension scan → coverage matrix → report gate).
+        scan_id = state["scan_id"]
+
+        def _emit(agent: str, message: str, level: str, data: Any) -> None:
+            insert_event(scan_id, agent, message, level, data)
+
+        result = run_whitebox_audit(
+            Path(state["archive_path"]),
+            Path(state["work_dir"]),
+            state["config"],
+            emit=_emit,
+        )
+        state["mode"] = result["mode"]
+        state["recon"] = {key: value for key, value in result["recon"].items()}
+        state["discovery"] = {
+            "source": result["source"],
+            "plannedDimensions": result["plannedDimensions"],
+        }
+        state["coverage"] = result["coverage"]
+        state["gate"] = result["gate"]
+        state["findings"] = result["findings"]
     insert_event(
         state["scan_id"],
         "Discovery Agent",
@@ -149,6 +195,12 @@ def reporting_agent(state: AgentState) -> AgentState:
 
 
 def _is_non_destructive_finding(finding: Dict[str, Any]) -> bool:
+    # The code-audit / dsh pentest pipelines pre-compute verification.
+    agent = finding.get("source_agent", "")
+    if "Dimension Agent" in agent or "Pentest" in agent or "LLM" in agent:
+        return bool(finding.get("verified"))
+    safe_sources = {"Recon Agent", "Discovery Agent"}
+    return agent in safe_sources and bool(finding.get("evidence"))
     safe_sources = {"Recon Agent", "Discovery Agent"}
     return finding.get("source_agent") in safe_sources and bool(finding.get("evidence"))
 

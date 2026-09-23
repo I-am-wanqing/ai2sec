@@ -6,6 +6,43 @@ Risk score: **{{ report.riskScore }}**
 
 {{ report.summary }}
 
+{% if report.mode %}Audit mode: **{{ report.mode }}** (code-audit skill pipeline: mode → recon → D1-D10 dimension scan → coverage matrix → report gate){% endif %}
+
+{% if report.recon %}
+## Reconnaissance
+
+- Language: {{ report.recon.language }}
+- Frameworks: {{ report.recon.frameworks | join(', ') if report.recon.frameworks else 'n/a' }}
+- Source files: {{ report.recon.fileCount }}
+- Entry points: {{ report.recon.entryPoints }}
+{% endif %}
+
+{% if report.coverage %}
+{% if report.coverage.classes %}
+## Vulnerability Class Coverage (dsh pentest-web SOP)
+
+| Class | Status |
+|-------|--------|
+{% for cls, status in report.coverage.classes.items() %}| {{ cls }} | {{ status }} |
+{% endfor %}
+
+{{ report.coverage.get('summary', '') }}
+
+{% if report.coverage.get('untested') %}Untested classes (require active tier — out of safe scope): {{ report.coverage.untested | join(', ') }}{% endif %}
+{% else %}
+## Coverage Matrix (D1-D10)
+
+| Dimension | Status | Findings |
+|-----------|--------|----------|
+{% for code, dim in report.coverage.dimensions.items() %}| {{ code }} {{ dim.label }} | {{ dim.status }} | {{ dim.findings }} |
+{% endfor %}
+
+Coverage: {{ report.coverage.coveredCount }}/{{ report.coverage.totalCount }} dimensions ({{ report.coverage.plannedCount }} planned for this mode).
+
+{% if report.gate %}Report gate: {% if report.gate.passed %}**passed**{% else %}**not passed** — {{ report.gate.rule }}{% endif %}{% endif %}
+
+{% endif %}
+{% endif %}
 ## Findings
 
 {% for finding in report.findings %}
@@ -20,5 +57,5 @@ Risk score: **{{ report.riskScore }}**
 Recommendation: {{ finding.recommendation }}
 
 {% else %}
-No findings were produced by the safe MVP pipeline.
+No findings were produced by this audit pipeline.
 {% endfor %}

@@ -35,6 +35,35 @@ export AI2SEC_INVITE_CODE='change-me'
 export AI2SEC_DATABASE_URL='sqlite:////opt/ai2sec/backend/data/ai2sec.db'
 ```
 
+## 2.5 LLM / API Key 配置（白盒审计与黑盒渗透的 LLM 流水线）
+
+白盒审计（code-audit skill）和黑盒渗透（dsh pentest-web SOP）的 LLM 编排层需要一个 OpenAI 兼容 API，默认按 DeepSeek 配置。
+
+在项目根目录（后端进程的工作目录）创建 `.env`：
+
+```bash
+AI2SEC_OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+AI2SEC_OPENAI_BASE_URL=https://api.deepseek.com
+AI2SEC_OPENAI_MODEL=deepseek-chat
+```
+
+要点：
+
+- `.env` 已在 `.gitignore` 与 `.dockerignore` 中，密钥不会进仓库或镜像。
+- 也支持任何 OpenAI 兼容服务（如 vLLM 自建端点），改 `AI2SEC_OPENAI_BASE_URL` 和 `AI2SEC_OPENAI_MODEL` 即可；注意 DeepSeek 的 base URL 不带 `/v1` 后缀。
+- **密钥未配置时流水线不会失败**：两条流水线自动回退到确定性引擎（白盒为 D1-D10 规则扫描，黑盒为 dsh core 侦察 + 安全探测），报告的 `engine` 字段区分 `code-audit-skill-llm` / `deterministic-rules`、`dsh-skill-llm` / `dsh-deterministic`。
+- 如需彻底关闭 LLM 调用：`AI2SEC_LLM_AUDIT_ENABLED=false`、`AI2SEC_LLM_PENTEST_ENABLED=false`。
+
+其他 LLM 相关参数（一般无需调整）：
+
+```bash
+AI2SEC_LLM_MAX_BATCHES=12       # 白盒源码分批上限
+AI2SEC_LLM_BATCH_CHARS=48000    # 每批源码字符数
+AI2SEC_PENTEST_MAX_ENDPOINTS=200  # 黑盒端点分析上限
+```
+
+Skill 语料依赖：仓库内 `code-audit-main/` 与 `dsh-pentest-skills-main/` 是流水线的方法论文档与工具引擎，可通过 `AI2SEC_SKILL_DIR`、`AI2SEC_PENTEST_DIR` 覆盖路径；Docker 镜像构建时已自动拷贝这两个目录。
+
 后端认证接口：
 
 ```http
@@ -91,6 +120,8 @@ After=network.target
 WorkingDirectory=/opt/ai2sec
 Environment=AI2SEC_INVITE_CODE=change-me
 Environment=AI2SEC_DATABASE_URL=sqlite:////opt/ai2sec/backend/data/ai2sec.db
+# LLM 配置建议用 EnvironmentFile 而非明文写在这里：
+EnvironmentFile=/opt/ai2sec/.env
 ExecStart=/opt/ai2sec/.venv/bin/uvicorn ai2sec_backend.main:app --app-dir backend --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=3
@@ -157,6 +188,7 @@ sudo systemctl reload nginx
 推荐使用仓库内 `docker-compose.yml` 同时启动前后端：
 
 ```bash
+# 密钥从项目根 .env 自动读取（AI2SEC_OPENAI_*）
 docker compose up --build -d
 ```
 
@@ -180,7 +212,7 @@ curl http://127.0.0.1:8000/api/health
 docker build -t ai2sec-ops-console:0.1.0 .
 ```
 
-构建后端镜像：
+构建后端镜像（已包含 code-audit-main 与 dsh-pentest-skills-main skill 语料）：
 
 ```bash
 docker build -f backend/Dockerfile -t ai2sec-backend:0.1.0 .
@@ -193,6 +225,9 @@ docker run -d \
   --name ai2sec-backend \
   --restart unless-stopped \
   -e AI2SEC_INVITE_CODE=change-me \
+  -e AI2SEC_OPENAI_API_KEY=sk-xxxx \
+  -e AI2SEC_OPENAI_BASE_URL=https://api.deepseek.com \
+  -e AI2SEC_OPENAI_MODEL=deepseek-chat \
   -p 8000:8000 \
   ai2sec-backend:0.1.0
 ```
@@ -224,7 +259,7 @@ sudo systemctl status certbot.timer
 
 ## 7. 后端 API
 
-黑盒任务：
+黑盒任务（profile 支持 quick / standard / deep；quick 仅确定性侦察，standard / deep 走 LLM SOP，均限定安全探测层）：
 
 ```http
 POST /api/scans/blackbox
@@ -235,27 +270,18 @@ POST /api/scans/blackbox
 ```json
 {
   "targetUrl": "https://example.com",
-  "profile": "standard",
+  "profile": "deep",
   "scope": {
     "includeSubdomains": true,
     "respectRobots": true,
     "rateLimit": true,
     "authenticatedScan": false
   },
-  "modules": [
-    "asset-discovery",
-    "port-scan",
-    "service-fingerprint",
-    "web-crawl",
-    "api-discovery",
-    "parameter-discovery",
-    "vuln-testing",
-    "poc-validation"
-  ]
+  "modules": []
 }
 ```
 
-白盒任务：
+白盒任务（auditProfile 支持 quick / standard / deep，映射 code-audit skill 的三种审计模式）：
 
 ```http
 POST /api/scans/whitebox

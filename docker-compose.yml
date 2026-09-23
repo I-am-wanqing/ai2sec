@@ -6,6 +6,11 @@ services:
     environment:
       AI2SEC_DATABASE_URL: sqlite:////app/backend/data/ai2sec.db
       AI2SEC_INVITE_CODE: demo-invite-code
+      # LLM (DeepSeek, OpenAI-compatible). Read from a local .env file or
+      # export before `docker compose up` — never hardcode the key here.
+      AI2SEC_OPENAI_API_KEY: ${AI2SEC_OPENAI_API_KEY:-}
+      AI2SEC_OPENAI_BASE_URL: ${AI2SEC_OPENAI_BASE_URL:-https://api.deepseek.com}
+      AI2SEC_OPENAI_MODEL: ${AI2SEC_OPENAI_MODEL:-deepseek-chat}
     volumes:
       - ai2sec-backend-data:/app/backend/data
     ports:

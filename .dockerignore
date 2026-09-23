@@ -6,3 +6,8 @@ npm-debug.log
 Dockerfile
 docs
 README.md
+.env
+.env.*
+code-audit-main.zip
+.venv
+outputs
